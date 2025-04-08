@@ -50,7 +50,7 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: build/artifacts/**/*.nupkg
+          subject-path: build/artifacts/**/*.nupkg
 
       - name: Push to GitHub Packages
         run: dotnet nuget push "build/artifacts/**/*.nupkg" --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
