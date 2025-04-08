@@ -1,4 +1,4 @@
-name: Build WiX Toolset v6
+name: Build WiX Toolset
 
 on:
   workflow_dispatch:
@@ -8,8 +8,7 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   NUGET_XMLDOC_MODE: skip
-  WIX_REF: main
-  
+  WIX_REF: v6.0.0
 
 jobs:
   build:
@@ -30,19 +29,7 @@ jobs:
           ref: ${{ env.WIX_REF }}
           fetch-depth: 0
 
-      - name: Configure automated logging and crash dumps
-        shell: cmd
-        run: |
-          reg add HKLM\Software\Policies\Microsoft\Windows\Installer /t REG_SZ /v Logging /d voicewarmupx /f
-          reg add HKLM\Software\WOW6432Node\Policies\Microsoft\Windows\Installer /t REG_SZ /v Logging /d voicewarmupx /f
-          reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" /t REG_EXPAND_SZ /v DumpFolder /d "%CD%\build\logs\crashdumps" /f
-          reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" /t REG_DWORD /v DumpCount /d 10 /f
-          reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" /t REG_DWORD /v DumpType /d 1 /f
-          reg add "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\Windows Error Reporting\LocalDumps" /t REG_EXPAND_SZ /v DumpFolder /d "%CD%\build\logs\crashdumps" /f
-          reg add "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\Windows Error Reporting\LocalDumps" /t REG_DWORD /v DumpCount /d 10 /f
-          reg add "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\Windows Error Reporting\LocalDumps" /t REG_DWORD /v DumpType /d 1
-
-      - name: Build wix6
+      - name: Build wix
         shell: cmd
         run: ./src/build_official.cmd
         env:
@@ -54,6 +41,7 @@ jobs:
           SigningCertName:  ${{ env.SignBuild == 'true' && secrets.WIX_SIGNING_CERTNAME || '' }}
 
       - name: Save build
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
@@ -61,3 +49,23 @@ jobs:
 
       - name: Push to GitHub Packages
         run: dotnet nuget push "build/artifacts/**/*.nupkg" --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+
+    outputs:
+      subject-name: artifacts
+      subject-digest: sha256:${{steps.upload.outputs.artifact-digest}}
+
+  attest:
+    runs-on: ubuntu-latest
+    needs: build
+
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+
+    steps:
+    - name: Generate artifact attestation
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-name: ${{needs.build.outputs.subject-name}}
+        subject-digest: ${{needs.build.outputs.subject-digest}}
