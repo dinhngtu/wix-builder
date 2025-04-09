@@ -8,6 +8,7 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   NUGET_XMLDOC_MODE: skip
+  WIX_REPO: dinhngtu/wix
   WIX_REF: v6.0.0-dinhngtu.0
 
 jobs:
@@ -24,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          repository: wixtoolset/wix
+          repository: ${{ env.WIX_REPO }}
           ref: ${{ env.WIX_REF }}
       - name: Build wix
         shell: cmd
