@@ -20,14 +20,12 @@ jobs:
       WixOfficialBuild: ${{ github.repository_owner == 'wixtoolset' && startsWith(github.ref, 'refs/tags/v') }}
     permissions:
       packages: write
-      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           repository: wixtoolset/wix
           ref: ${{ env.WIX_REF }}
-          fetch-depth: 0
       - name: Build wix
         shell: cmd
         run: ./src/build_official.cmd
