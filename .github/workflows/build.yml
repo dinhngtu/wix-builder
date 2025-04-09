@@ -21,8 +21,6 @@ jobs:
     permissions:
       packages: write
       id-token: write
-      contents: read
-      attestations: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,7 +28,6 @@ jobs:
           repository: wixtoolset/wix
           ref: ${{ env.WIX_REF }}
           fetch-depth: 0
-
       - name: Build wix
         shell: cmd
         run: ./src/build_official.cmd
@@ -41,18 +38,29 @@ jobs:
           SigningClientId: ${{ env.SignBuild == 'true' && secrets.WIX_SIGNING_CLIENTID || '' }}
           SigningClientSecret: ${{ env.SignBuild == 'true' && secrets.WIX_SIGNING_SECRET || '' }}
           SigningCertName: ${{ env.SignBuild == 'true' && secrets.WIX_SIGNING_CERTNAME || '' }}
-
       - name: Save build
         id: upload
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: build/artifacts/
+      - name: Push to GitHub Packages
+        run: dotnet nuget push "build/artifacts/**/*.nupkg" --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
 
+  attest:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+          path: build/artifacts/
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: build/artifacts/**/*.nupkg
-
-      - name: Push to GitHub Packages
-        run: dotnet nuget push "build/artifacts/**/*.nupkg" --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
